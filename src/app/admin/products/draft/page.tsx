@@ -322,7 +322,7 @@ export default function DraftProductsPage() {
         image: formData.image,
         images: imagesToSave.length > 0 ? imagesToSave : undefined, // ✅ Envoyer toutes les images
         badge: formData.badge === 'none' ? undefined : formData.badge,
-        stock: formData.stock,
+        // ✅ Stock non modifiable : calculé automatiquement depuis les variants
       })
 
       if (response.data) {
@@ -1990,14 +1990,26 @@ export default function DraftProductsPage() {
                         </div>
 
                         <div>
-                          <Label htmlFor="stock">Stock</Label>
+                          <Label htmlFor="stock">Stock (calculé automatiquement)</Label>
                           <Input
                             id="stock"
                             type="number"
                             min="0"
-                            value={formData.stock || 0}
-                            onChange={(e) => setFormData({ ...formData, stock: Number(e.target.value) })}
+                            value={(() => {
+                              // ✅ Calculer le stock total depuis les variants
+                              const variants = editingVariants[product.id] || product.productVariants || []
+                              if (variants.length > 0) {
+                                return variants.reduce((sum, v) => sum + (v.stock || 0), 0)
+                              }
+                              return formData.stock || 0
+                            })()}
+                            readOnly
+                            disabled
+                            className="bg-gray-100 cursor-not-allowed"
                           />
+                          <p className="text-xs text-gray-500 mt-1">
+                            ℹ️ Le stock est calculé automatiquement comme la somme des stocks de tous les variants
+                          </p>
                         </div>
 
                         <div>
