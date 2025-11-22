@@ -215,17 +215,19 @@ export default function CreateOrderPage() {
       console.log('Réponse sync variants:', response)
       
       // Vérifier différentes structures de réponse
-      const success = response?.success !== false && 
-                     response?.data?.success !== false &&
-                     (response?.data?.data?.updated !== undefined || response?.data?.updated !== undefined)
+      const responseData = response as any;
+      const success = !response?.error && 
+                     (responseData?.success !== false) &&
+                     (responseData?.data?.success !== false) &&
+                     (responseData?.data?.data?.updated !== undefined || responseData?.data?.updated !== undefined)
       
       if (success) {
-        const updated = response?.data?.data?.updated || response?.data?.updated || 0
+        const updated = responseData?.data?.data?.updated || responseData?.data?.updated || 0
         alert(`✅ Variants synchronisés avec succès !\n${updated} variant(s) créé(s)/mis à jour.`)
         // Recharger les produits pour voir les nouveaux variants
         await loadProducts()
       } else {
-        const message = response?.data?.message || response?.message || 'Erreur lors de la synchronisation'
+        const message = response?.data?.message || response?.message || response?.error || 'Erreur lors de la synchronisation'
         alert(`⚠️ ${message}`)
       }
     } catch (error: any) {
@@ -255,11 +257,13 @@ export default function CreateOrderPage() {
       
       console.log('Réponse sync all variants:', response)
       
-      const success = response?.success !== false && 
-                     response?.data?.success !== false
+      const responseData = response as any;
+      const success = !response?.error && 
+                     (responseData?.success !== false) &&
+                     (responseData?.data?.success !== false)
       
       if (success) {
-        const data = response?.data?.data || response?.data || {}
+        const data = responseData?.data?.data || responseData?.data || response?.data || {}
         alert(
           `✅ Synchronisation terminée !\n\n` +
           `Produits synchronisés: ${data.synced || 0}\n` +
