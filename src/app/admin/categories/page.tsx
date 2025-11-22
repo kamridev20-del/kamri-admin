@@ -93,36 +93,43 @@ export default function CategoriesPage() {
     try {
       setIsLoading(true)
       
-      // Charger les catégories
-      const categoriesResponse = await apiClient.getCategories()
-      if (categoriesResponse.data) {
-        const backendData = categoriesResponse.data.data || categoriesResponse.data
-        const categoriesData = Array.isArray(backendData) ? backendData : []
-        setCategories(categoriesData)
-        
-        // Charger les statistiques pour chaque catégorie
-        await loadCategoryStats(categoriesData)
+      // ✅ OPTIMISÉ : Charger toutes les stats en une seule requête au lieu de multiples appels séquentiels
+      try {
+        const statsResponse = await apiClient.getAllCategoryStats()
+        if (statsResponse.data) {
+          const statsData = statsResponse.data.data || statsResponse.data
+          
+          // Définir les catégories et mappings
+          if (statsData.categories) {
+            setCategories(Array.isArray(statsData.categories) ? statsData.categories : [])
+          }
+          if (statsData.mappings) {
+            setMappings(Array.isArray(statsData.mappings) ? statsData.mappings : [])
+          }
+          
+          // Définir les statistiques directement
+          if (statsData.stats) {
+            setMappingStats(statsData.stats)
+          }
+        }
+      } catch (statsError) {
+        console.warn('⚠️ Erreur lors du chargement des stats groupées, fallback sur méthode séquentielle:', statsError)
+        // Fallback sur l'ancienne méthode si le nouvel endpoint n'est pas disponible
+        await loadDataSequential()
+        return
       }
 
-      // Charger les mappings
-      const mappingsResponse = await apiClient.getCategoryMappings()
-      if (mappingsResponse.data) {
-        const mappingsData = mappingsResponse.data.data || mappingsResponse.data
-        setMappings(Array.isArray(mappingsData) ? mappingsData : [])
-        
-        // Charger les statistiques pour chaque mapping
-        await loadMappingStats(Array.isArray(mappingsData) ? mappingsData : [])
-      }
+      // Charger les fournisseurs et catégories non mappées en parallèle
+      const [suppliersResponse, unmappedResponse] = await Promise.all([
+        apiClient.getSuppliers(),
+        apiClient.getUnmappedExternalCategories()
+      ])
 
-      // Charger les fournisseurs
-      const suppliersResponse = await apiClient.getSuppliers()
       if (suppliersResponse.data) {
         const suppliersData = suppliersResponse.data.data || suppliersResponse.data
         setSuppliers(Array.isArray(suppliersData) ? suppliersData : [])
       }
 
-      // Charger les catégories non mappées
-      const unmappedResponse = await apiClient.getUnmappedExternalCategories()
       if (unmappedResponse.data) {
         const unmappedData = unmappedResponse.data.data || unmappedResponse.data
         setUnmappedCategories(Array.isArray(unmappedData) ? unmappedData : [])
@@ -136,47 +143,93 @@ export default function CategoriesPage() {
     }
   }
 
+  // Méthode de fallback (ancienne méthode séquentielle)
+  const loadDataSequential = async () => {
+    // Charger les catégories
+    const categoriesResponse = await apiClient.getCategories()
+    if (categoriesResponse.data) {
+      const backendData = categoriesResponse.data.data || categoriesResponse.data
+      const categoriesData = Array.isArray(backendData) ? backendData : []
+      setCategories(categoriesData)
+      
+      // Charger les statistiques pour chaque catégorie
+      await loadCategoryStats(categoriesData)
+    }
+
+    // Charger les mappings
+    const mappingsResponse = await apiClient.getCategoryMappings()
+    if (mappingsResponse.data) {
+      const mappingsData = mappingsResponse.data.data || mappingsResponse.data
+      setMappings(Array.isArray(mappingsData) ? mappingsData : [])
+      
+      // Charger les statistiques pour chaque mapping
+      await loadMappingStats(Array.isArray(mappingsData) ? mappingsData : [])
+    }
+  }
+
+  // ✅ OPTIMISÉ : Paralléliser les appels API au lieu de les faire séquentiellement
   const loadCategoryStats = async (categoriesData: Category[]) => {
     const stats: Record<string, MappingStats> = {}
-    for (const category of categoriesData) {
+    
+    // Utiliser Promise.all pour paralléliser tous les appels
+    const promises = categoriesData.map(async (category) => {
       try {
         const draftResponse = await apiClient.getDraftProductsCountByCategory(category.id)
-        stats[category.id] = {
+        return {
+          categoryId: category.id,
           draftCount: draftResponse.count || 0,
-          cjStoreCount: 0,
-          isLoading: false
+          cjStoreCount: 0
         }
       } catch (error) {
-        stats[category.id] = {
+        return {
+          categoryId: category.id,
           draftCount: 0,
-          cjStoreCount: 0,
-          isLoading: false
+          cjStoreCount: 0
         }
       }
-    }
+    })
+    
+    const results = await Promise.all(promises)
+    results.forEach(result => {
+      stats[result.categoryId] = {
+        draftCount: result.draftCount,
+        cjStoreCount: result.cjStoreCount,
+        isLoading: false
+      }
+    })
+    
     setMappingStats(stats)
   }
 
+  // ✅ OPTIMISÉ : Paralléliser les appels API au lieu de les faire séquentiellement
   const loadMappingStats = async (mappingsData: any[]) => {
     const stats = { ...mappingStats }
-    for (const mapping of mappingsData) {
+    
+    // Utiliser Promise.all pour paralléliser tous les appels
+    const promises = mappingsData.map(async (mapping) => {
       try {
         const cjCountResponse = await apiClient.getCJStoreProductsCount(mapping.id)
-        if (cjCountResponse.data) {
-          stats[mapping.id] = {
-            ...stats[mapping.id],
-            cjStoreCount: cjCountResponse.data.count || 0,
-            isLoading: false
-          }
+        return {
+          mappingId: mapping.id,
+          cjStoreCount: cjCountResponse.data?.count || 0
         }
       } catch (error) {
-        stats[mapping.id] = {
-          draftCount: 0,
-          cjStoreCount: 0,
-          isLoading: false
+        return {
+          mappingId: mapping.id,
+          cjStoreCount: 0
         }
       }
-    }
+    })
+    
+    const results = await Promise.all(promises)
+    results.forEach(result => {
+      stats[result.mappingId] = {
+        ...stats[result.mappingId],
+        cjStoreCount: result.cjStoreCount,
+        isLoading: false
+      }
+    })
+    
     setMappingStats(stats)
   }
 

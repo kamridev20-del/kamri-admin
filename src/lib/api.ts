@@ -499,6 +499,11 @@ export class ApiClient {
     return this.fetchWithAuth(`/categories/mappings/${mappingId}/cj-products-count`);
   }
 
+  // ✅ OPTIMISÉ : Récupérer toutes les statistiques de catégories en une seule requête
+  async getAllCategoryStats() {
+    return this.fetchWithAuth('/categories/stats/all');
+  }
+
   async syncAllMappings() {
     console.log('🌐 [API] Appel syncAllMappings: POST /categories/mappings/sync-all');
     try {
