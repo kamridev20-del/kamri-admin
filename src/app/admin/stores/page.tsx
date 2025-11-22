@@ -85,6 +85,8 @@ export default function StoresPage() {
   const [showPrepareModal, setShowPrepareModal] = useState(false);
   const [selectedProductForPrepare, setSelectedProductForPrepare] = useState<StoreProduct | null>(null);
   const [prepareFormData, setPrepareFormData] = useState({ categoryId: '', margin: 30 });
+  const [currentPage, setCurrentPage] = useState(1);
+  const productsPerPage = 50;
 
   // Récupérer les magasins
   const fetchStores = useCallback(async () => {
@@ -386,7 +388,19 @@ export default function StoresPage() {
     setSearchTerm('');
     setStatusFilter('all');
     setCategoryFilter('all');
+    setCurrentPage(1); // Réinitialiser la page
   };
+
+  // Calculer la pagination (AVANT les return conditionnels)
+  const totalPages = Math.ceil(products.length / productsPerPage);
+  const startIndex = (currentPage - 1) * productsPerPage;
+  const endIndex = startIndex + productsPerPage;
+  const paginatedProducts = products.slice(startIndex, endIndex);
+
+  // Réinitialiser la page quand les filtres changent
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, categoryFilter, selectedStoreId]);
 
   if (loading) {
     return (
@@ -462,14 +476,26 @@ export default function StoresPage() {
               </Select>
             </div>
 
+            {/* Info pagination */}
+            {totalPages > 1 && (
+              <div className="flex justify-between items-center text-sm text-gray-600 mb-4">
+                <div>
+                  Affichage: {startIndex + 1}-{Math.min(endIndex, products.length)} sur {products.length} produits
+                </div>
+                <div>
+                  Page {currentPage}/{totalPages}
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {products.length === 0 ? (
+              {paginatedProducts.length === 0 ? (
                 <div className="col-span-full text-center py-8">
                   <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <p className="text-muted-foreground">Aucun produit trouvé dans ce magasin.</p>
                 </div>
               ) : (
-                products.map((product) => (
+                paginatedProducts.map((product) => (
                   <Card
                     key={product.id}
                     className={`relative ${product.status === 'selected' ? 'border-2 border-primary' : ''}`}
@@ -540,6 +566,53 @@ export default function StoresPage() {
                 ))
               )}
             </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex justify-center items-center gap-2 mt-6">
+                <Button
+                  variant="outline"
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                >
+                  Précédent
+                </Button>
+                
+                <div className="flex gap-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum: number;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={currentPage === pageNum ? "default" : "outline"}
+                        onClick={() => setCurrentPage(pageNum)}
+                        className="min-w-[40px]"
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                </div>
+                
+                <Button
+                  variant="outline"
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Suivant
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       ) : (
