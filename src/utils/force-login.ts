@@ -130,7 +130,8 @@ export async function checkBackendHealth() {
   console.log('🏥 VÉRIFICATION DE LA SANTÉ DU BACKEND...');
   
   try {
-    const response = await fetch('http://localhost:3001/api/health', {
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+    const response = await fetch(`${API_URL}/health`, {
       method: 'GET',
     });
     
