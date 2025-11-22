@@ -116,7 +116,7 @@ export class ApiClient {
       
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
-        ...options.headers,
+        ...(options.headers as Record<string, string>),
       };
       
       // S'assurer que le header Authorization est correctement formaté

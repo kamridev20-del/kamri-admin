@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { X, Package, DollarSign, ShoppingCart, Tag, Calendar, User, Box, Weight, Ruler, Star, Image as ImageIcon, Info, Truck, Globe } from 'lucide-react'
+import { X, Package, DollarSign, ShoppingCart, Tag, Calendar, User, Box, Ruler, Star, Image as ImageIcon, Info, Truck, Globe } from 'lucide-react'
 import { apiClient } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
