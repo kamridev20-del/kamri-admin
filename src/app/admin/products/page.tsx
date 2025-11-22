@@ -181,7 +181,7 @@ export default function ProductsPage() {
     }
   }
 
-  const searchCJProducts = async () => {
+  const searchCJProducts = useCallback(async () => {
     try {
       setIsCJLoading(true)
       const response = await apiClient.searchCJProducts({
@@ -205,7 +205,7 @@ export default function ProductsPage() {
     } finally {
       setIsCJLoading(false)
     }
-  }
+  }, [cjSearchQuery, cjSelectedCategory, cjMinPrice, cjMaxPrice, cjPageNum, cjCountryCode])
 
   const importCJProduct = async (cjProduct: CJProduct, variant: CJVariant) => {
     try {
@@ -245,7 +245,7 @@ export default function ProductsPage() {
     }, 500) // 500ms de délai
 
     return () => clearTimeout(timeoutId)
-  }, [cjSearchQuery])
+  }, [cjSearchQuery, searchCJProducts])
 
   // Déclencher la recherche automatique quand la requête change
   useEffect(() => {
@@ -254,6 +254,11 @@ export default function ProductsPage() {
       return cleanup
     }
   }, [cjSearchQuery, activeTab, debouncedSearchCJ])
+
+  // Réinitialiser la page quand les filtres changent (AVANT les return conditionnels)
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, selectedCategory, selectedSupplier])
 
   const getBadgeStyle = (badge: string | null) => {
     switch (badge) {
@@ -338,11 +343,6 @@ export default function ProductsPage() {
   const startIndex = (currentPage - 1) * productsPerPage
   const endIndex = startIndex + productsPerPage
   const paginatedProducts = filteredProducts.slice(startIndex, endIndex)
-
-  // Réinitialiser la page quand les filtres changent
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [searchQuery, selectedCategory, selectedSupplier])
 
   const categoryOptions = ['Toutes', ...(categories || []).map(cat => cat.name)]
   const supplierOptions = ['Tous', ...(suppliers || []).map(sup => sup.name)]
