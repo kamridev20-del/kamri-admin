@@ -110,8 +110,6 @@ export default function DraftProductsPage() {
   const [isPublishing, setIsPublishing] = useState(false)
   const [currentImageIndex, setCurrentImageIndex] = useState<{ [key: string]: number }>({}) // ✅ Index de l'image actuelle par produit
   const [editingVariants, setEditingVariants] = useState<{ [key: string]: ProductVariant[] }>({}) // ✅ Variants en cours d'édition
-  const [currentPage, setCurrentPage] = useState(1)
-  const productsPerPage = 50
   const { isAuthenticated } = useAuth()
   const toast = useToast()
   const router = useRouter()
@@ -322,7 +320,7 @@ export default function DraftProductsPage() {
         image: formData.image,
         images: imagesToSave.length > 0 ? imagesToSave : undefined, // ✅ Envoyer toutes les images
         badge: formData.badge === 'none' ? undefined : formData.badge,
-        // ✅ Stock non modifiable : calculé automatiquement depuis les variants
+        stock: formData.stock,
       })
 
       if (response.data) {
@@ -1603,12 +1601,6 @@ export default function DraftProductsPage() {
     )
   }
 
-  // Calculer la pagination (AVANT les return conditionnels)
-  const totalPages = Math.ceil(drafts.length / productsPerPage)
-  const startIndex = (currentPage - 1) * productsPerPage
-  const endIndex = startIndex + productsPerPage
-  const paginatedDrafts = drafts.slice(startIndex, endIndex)
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -1649,9 +1641,6 @@ export default function DraftProductsPage() {
               <div>
                 <p className="text-sm text-gray-600">Total Draft</p>
                 <p className="text-2xl font-bold text-gray-900">{drafts.length}</p>
-                {totalPages > 1 && (
-                  <p className="text-xs text-gray-500 mt-1">Page {currentPage}/{totalPages}</p>
-                )}
               </div>
               <Package className="h-8 w-8 text-primary-500" />
             </div>
@@ -1703,21 +1692,8 @@ export default function DraftProductsPage() {
           </CardContent>
         </Card>
       ) : (
-        <>
-          {/* Info pagination */}
-          {totalPages > 1 && (
-            <div className="flex justify-between items-center text-sm text-gray-600 mb-4">
-              <div>
-                Affichage: {startIndex + 1}-{Math.min(endIndex, drafts.length)} sur {drafts.length} produits
-              </div>
-              <div>
-                Page {currentPage}/{totalPages}
-              </div>
-            </div>
-          )}
-          
-          <div className="space-y-4">
-            {paginatedDrafts.map((product) => (
+        <div className="space-y-4">
+          {drafts.map((product) => (
             <Card key={product.id} className="kamri-card">
               <CardContent className="p-6">
                 {editingId === product.id ? (
@@ -1990,26 +1966,14 @@ export default function DraftProductsPage() {
                         </div>
 
                         <div>
-                          <Label htmlFor="stock">Stock (calculé automatiquement)</Label>
+                          <Label htmlFor="stock">Stock</Label>
                           <Input
                             id="stock"
                             type="number"
                             min="0"
-                            value={(() => {
-                              // ✅ Calculer le stock total depuis les variants
-                              const variants = editingVariants[product.id] || product.productVariants || []
-                              if (variants.length > 0) {
-                                return variants.reduce((sum, v) => sum + (v.stock || 0), 0)
-                              }
-                              return formData.stock || 0
-                            })()}
-                            readOnly
-                            disabled
-                            className="bg-gray-100 cursor-not-allowed"
+                            value={formData.stock || 0}
+                            onChange={(e) => setFormData({ ...formData, stock: Number(e.target.value) })}
                           />
-                          <p className="text-xs text-gray-500 mt-1">
-                            ℹ️ Le stock est calculé automatiquement comme la somme des stocks de tous les variants
-                          </p>
                         </div>
 
                         <div>
@@ -2162,7 +2126,7 @@ export default function DraftProductsPage() {
                           console.log(`🔍 [DRAFT-EDIT] Produit ${product.id} - Variants disponibles:`, {
                             editingVariants: editingVariants[product.id]?.length || 0,
                             productVariants: product.productVariants?.length || 0,
-                            variantsJson: product.variants ? (typeof product.variants === 'string' ? (JSON.parse(product.variants) as any[]).length : (product.variants as any[]).length) : 0,
+                            variantsJson: product.variants ? (typeof product.variants === 'string' ? JSON.parse(product.variants).length : product.variants.length) : 0,
                             variants: variants.length,
                             variantDetails: variants.map(v => ({
                               id: v.id,
@@ -2249,16 +2213,18 @@ export default function DraftProductsPage() {
                                     </div>
                                     
                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-                                      <div>
-                                        <span className="text-gray-500">Prix:</span>
-                                        <span className="ml-1 font-semibold">
-                                          {variant.price !== undefined && variant.price !== null ? `${variant.price}$` : 'N/A'}
-                                        </span>
-                                      </div>
-                                      <div>
-                                        <span className="text-gray-500">Stock:</span>
-                                        <span className="ml-1 font-semibold">{variant.stock ?? 0}</span>
-                                      </div>
+                                      {variant.price !== undefined && variant.price !== null && (
+                                        <div>
+                                          <span className="text-gray-500">Prix:</span>
+                                          <span className="ml-1 font-semibold">{variant.price}$</span>
+                                        </div>
+                                      )}
+                                      {variant.stock !== undefined && variant.stock !== null && (
+                                        <div>
+                                          <span className="text-gray-500">Stock:</span>
+                                          <span className="ml-1">{variant.stock}</span>
+                                        </div>
+                                      )}
                                       {variant.weight !== undefined && variant.weight !== null && (
                                         <div>
                                           <span className="text-gray-500">Poids:</span>
@@ -2556,55 +2522,7 @@ export default function DraftProductsPage() {
               </CardContent>
             </Card>
           ))}
-          </div>
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex justify-center items-center gap-2 mt-6">
-              <Button
-                variant="outline"
-                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                disabled={currentPage === 1}
-              >
-                Précédent
-              </Button>
-              
-              <div className="flex gap-1">
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  let pageNum: number;
-                  if (totalPages <= 5) {
-                    pageNum = i + 1;
-                  } else if (currentPage <= 3) {
-                    pageNum = i + 1;
-                  } else if (currentPage >= totalPages - 2) {
-                    pageNum = totalPages - 4 + i;
-                  } else {
-                    pageNum = currentPage - 2 + i;
-                  }
-                  
-                  return (
-                    <Button
-                      key={pageNum}
-                      variant={currentPage === pageNum ? "default" : "outline"}
-                      onClick={() => setCurrentPage(pageNum)}
-                      className="min-w-[40px]"
-                    >
-                      {pageNum}
-                    </Button>
-                  );
-                })}
-              </div>
-              
-              <Button
-                variant="outline"
-                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                disabled={currentPage === totalPages}
-              >
-                Suivant
-              </Button>
-            </div>
-          )}
-        </>
+        </div>
       )}
     </div>
   )
