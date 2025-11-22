@@ -110,6 +110,8 @@ export default function DraftProductsPage() {
   const [isPublishing, setIsPublishing] = useState(false)
   const [currentImageIndex, setCurrentImageIndex] = useState<{ [key: string]: number }>({}) // ✅ Index de l'image actuelle par produit
   const [editingVariants, setEditingVariants] = useState<{ [key: string]: ProductVariant[] }>({}) // ✅ Variants en cours d'édition
+  const [currentPage, setCurrentPage] = useState(1)
+  const productsPerPage = 50
   const { isAuthenticated } = useAuth()
   const toast = useToast()
   const router = useRouter()
@@ -1601,6 +1603,12 @@ export default function DraftProductsPage() {
     )
   }
 
+  // Calculer la pagination (AVANT les return conditionnels)
+  const totalPages = Math.ceil(drafts.length / productsPerPage)
+  const startIndex = (currentPage - 1) * productsPerPage
+  const endIndex = startIndex + productsPerPage
+  const paginatedDrafts = drafts.slice(startIndex, endIndex)
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -1641,6 +1649,9 @@ export default function DraftProductsPage() {
               <div>
                 <p className="text-sm text-gray-600">Total Draft</p>
                 <p className="text-2xl font-bold text-gray-900">{drafts.length}</p>
+                {totalPages > 1 && (
+                  <p className="text-xs text-gray-500 mt-1">Page {currentPage}/{totalPages}</p>
+                )}
               </div>
               <Package className="h-8 w-8 text-primary-500" />
             </div>
@@ -1692,8 +1703,21 @@ export default function DraftProductsPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
-          {drafts.map((product) => (
+        <>
+          {/* Info pagination */}
+          {totalPages > 1 && (
+            <div className="flex justify-between items-center text-sm text-gray-600 mb-4">
+              <div>
+                Affichage: {startIndex + 1}-{Math.min(endIndex, drafts.length)} sur {drafts.length} produits
+              </div>
+              <div>
+                Page {currentPage}/{totalPages}
+              </div>
+            </div>
+          )}
+          
+          <div className="space-y-4">
+            {paginatedDrafts.map((product) => (
             <Card key={product.id} className="kamri-card">
               <CardContent className="p-6">
                 {editingId === product.id ? (
@@ -2520,7 +2544,55 @@ export default function DraftProductsPage() {
               </CardContent>
             </Card>
           ))}
-        </div>
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex justify-center items-center gap-2 mt-6">
+              <Button
+                variant="outline"
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+              >
+                Précédent
+              </Button>
+              
+              <div className="flex gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum: number;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  
+                  return (
+                    <Button
+                      key={pageNum}
+                      variant={currentPage === pageNum ? "default" : "outline"}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className="min-w-[40px]"
+                    >
+                      {pageNum}
+                    </Button>
+                  );
+                })}
+              </div>
+              
+              <Button
+                variant="outline"
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+              >
+                Suivant
+              </Button>
+            </div>
+          )}
+        </>
       )}
     </div>
   )
