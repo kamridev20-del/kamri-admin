@@ -30,6 +30,7 @@ interface Category {
   description?: string;
   icon?: string;
   color?: string;
+  imageUrl?: string; // ✅ URL de l'image personnalisée
   isDefault?: boolean;
   createdAt: string;
   updatedAt: string;
@@ -73,8 +74,10 @@ export default function CategoriesPage() {
     name: '',
     description: '',
     icon: '🛍️',
-    color: '#4CAF50'
+    color: '#4CAF50',
+    imageUrl: '' // ✅ URL de l'image personnalisée
   })
+  const [isUploadingImage, setIsUploadingImage] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedSupplierFilter, setSelectedSupplierFilter] = useState<string>('')
   const [mappingStats, setMappingStats] = useState<Record<string, MappingStats>>({})
@@ -233,14 +236,59 @@ export default function CategoriesPage() {
     setMappingStats(stats)
   }
 
+  const handleImageUpload = async (file: File, categoryId?: string) => {
+    if (!file) return
+    
+    setIsUploadingImage(true)
+    try {
+      // Si on est en mode édition et qu'on a un categoryId, uploader directement
+      if (categoryId) {
+        const uploadResponse = await apiClient.uploadCategoryImage(categoryId, file)
+        if (uploadResponse.data?.imageUrl) {
+          // Mettre à jour la catégorie avec la nouvelle image
+          await apiClient.updateCategory(categoryId, { imageUrl: uploadResponse.data.imageUrl })
+          toast.showToast({ type: 'success', title: 'Succès', description: 'Image uploadée avec succès' })
+          await loadData()
+          return uploadResponse.data.imageUrl
+        }
+      } else {
+        // En mode création, on stocke temporairement le fichier
+        // L'upload se fera après la création de la catégorie
+        const reader = new FileReader()
+        reader.onload = (e) => {
+          const result = e.target?.result as string
+          setNewCategoryData({ ...newCategoryData, imageUrl: result })
+        }
+        reader.readAsDataURL(file)
+        toast.showToast({ type: 'info', title: 'Info', description: 'Image sélectionnée. Elle sera uploadée lors de la création de la catégorie.' })
+      }
+    } catch (error: any) {
+      console.error('Erreur lors de l\'upload de l\'image:', error)
+      toast.showToast({ type: 'error', title: 'Erreur', description: error.message || 'Impossible d\'uploader l\'image' })
+    } finally {
+      setIsUploadingImage(false)
+    }
+  }
+
   const handleAddCategory = async () => {
     try {
       const response = await apiClient.createCategory(newCategoryData)
       if (response.data) {
+        const categoryId = response.data.id
+        
+        // Si on a une image en base64, l'uploader maintenant
+        if (newCategoryData.imageUrl && newCategoryData.imageUrl.startsWith('data:')) {
+          // Convertir base64 en File
+          const base64Response = await fetch(newCategoryData.imageUrl)
+          const blob = await base64Response.blob()
+          const file = new File([blob], 'category-image.jpg', { type: blob.type })
+          await handleImageUpload(file, categoryId)
+        }
+        
         toast.showToast({ type: 'success', title: 'Succès', description: 'Catégorie créée avec succès' })
         await loadData()
         setShowAddCategoryModal(false)
-        setNewCategoryData({ name: '', description: '', icon: '🛍️', color: '#4CAF50' })
+        setNewCategoryData({ name: '', description: '', icon: '🛍️', color: '#4CAF50', imageUrl: '' })
       }
     } catch (error: any) {
       console.error('Erreur lors de l\'ajout de la catégorie:', error)
@@ -252,11 +300,32 @@ export default function CategoriesPage() {
     if (!selectedCategoryForEdit) return
     
     try {
+      // Si on a une nouvelle image en base64, l'uploader d'abord
+      let imageUrl = selectedCategoryForEdit.imageUrl
+      if (imageUrl && imageUrl.startsWith('data:')) {
+        try {
+          const base64Response = await fetch(imageUrl)
+          const blob = await base64Response.blob()
+          const file = new File([blob], 'category-image.jpg', { type: blob.type })
+          setIsUploadingImage(true)
+          const uploadResponse = await apiClient.uploadCategoryImage(selectedCategoryForEdit.id, file)
+          if (uploadResponse.data?.imageUrl) {
+            imageUrl = uploadResponse.data.imageUrl
+          }
+        } catch (uploadError) {
+          console.error('Erreur upload image:', uploadError)
+          toast.showToast({ type: 'warning', title: 'Attention', description: 'Erreur lors de l\'upload de l\'image, mais la catégorie sera mise à jour' })
+        } finally {
+          setIsUploadingImage(false)
+        }
+      }
+      
       const response = await apiClient.updateCategory(selectedCategoryForEdit.id, {
         name: selectedCategoryForEdit.name,
         description: selectedCategoryForEdit.description,
         icon: selectedCategoryForEdit.icon,
-        color: selectedCategoryForEdit.color
+        color: selectedCategoryForEdit.color,
+        imageUrl: imageUrl
       })
       if (response.data) {
         toast.showToast({ type: 'success', title: 'Succès', description: 'Catégorie modifiée avec succès' })
@@ -782,6 +851,69 @@ export default function CategoriesPage() {
                   />
                 </div>
               </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Image de la catégorie (optionnel)</label>
+                <div className="space-y-2">
+                  {/* Upload de fichier */}
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Uploader une image</label>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) {
+                          // En mode création, on stocke temporairement
+                          const reader = new FileReader()
+                          reader.onload = (event) => {
+                            const result = event.target?.result as string
+                            setNewCategoryData({ ...newCategoryData, imageUrl: result })
+                          }
+                          reader.readAsDataURL(file)
+                        }
+                      }}
+                      className="w-full px-3 py-2 border rounded-lg text-sm"
+                      disabled={isUploadingImage}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Formats acceptés: JPEG, PNG, WebP, GIF (max 5MB)</p>
+                  </div>
+                  
+                  {/* OU URL */}
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-gray-300"></div>
+                    </div>
+                    <div className="relative flex justify-center text-xs">
+                      <span className="bg-white px-2 text-gray-500">OU</span>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">URL de l'image</label>
+                    <input
+                      type="url"
+                      value={newCategoryData.imageUrl && !newCategoryData.imageUrl.startsWith('data:') ? newCategoryData.imageUrl : ''}
+                      onChange={(e) => setNewCategoryData({...newCategoryData, imageUrl: e.target.value})}
+                      className="w-full px-3 py-2 border rounded-lg"
+                      placeholder="https://example.com/image.jpg"
+                    />
+                  </div>
+                </div>
+                
+                <p className="text-xs text-gray-500 mt-2">L'image remplacera l'icône sur la page catégories du web</p>
+                {newCategoryData.imageUrl && (
+                  <div className="mt-2">
+                    <img 
+                      src={newCategoryData.imageUrl} 
+                      alt="Preview" 
+                      className="w-full h-32 object-cover rounded-lg border"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
               <div className="flex space-x-2">
                 <Button 
                   onClick={handleAddCategory}
@@ -849,13 +981,36 @@ export default function CategoriesPage() {
                   />
                 </div>
               </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Image URL (optionnel)</label>
+                <input
+                  type="url"
+                  value={selectedCategoryForEdit.imageUrl || ''}
+                  onChange={(e) => setSelectedCategoryForEdit({...selectedCategoryForEdit, imageUrl: e.target.value})}
+                  className="w-full px-3 py-2 border rounded-lg"
+                  placeholder="https://example.com/image.jpg"
+                />
+                <p className="text-xs text-gray-500 mt-2">L'image remplacera l'icône sur la page catégories du web</p>
+                {selectedCategoryForEdit.imageUrl && (
+                  <div className="mt-2">
+                    <img 
+                      src={selectedCategoryForEdit.imageUrl} 
+                      alt="Preview" 
+                      className="w-full h-32 object-cover rounded-lg border"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
               <div className="flex space-x-2">
                 <Button 
                   onClick={handleEditCategory}
                   className="flex-1"
-                  disabled={!selectedCategoryForEdit.name}
+                  disabled={!selectedCategoryForEdit.name || isUploadingImage}
                 >
-                  Sauvegarder
+                  {isUploadingImage ? 'Upload en cours...' : 'Sauvegarder'}
                 </Button>
                 <Button 
                   variant="outline" 

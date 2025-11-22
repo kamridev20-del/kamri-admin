@@ -340,18 +340,50 @@ export class ApiClient {
     return this.fetchWithAuth('/categories');
   }
 
-  async createCategory(categoryData: { name: string; description?: string; icon?: string; color?: string }) {
+  async createCategory(categoryData: { name: string; description?: string; icon?: string; color?: string; imageUrl?: string }) {
     return this.fetchWithAuth('/categories', {
       method: 'POST',
       body: JSON.stringify(categoryData),
     });
   }
 
-  async updateCategory(id: string, categoryData: { name?: string; description?: string; icon?: string; color?: string }) {
+  async updateCategory(id: string, categoryData: { name?: string; description?: string; icon?: string; color?: string; imageUrl?: string }) {
     return this.fetchWithAuth(`/categories/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(categoryData),
     });
+  }
+
+  async uploadCategoryImage(categoryId: string, file: File): Promise<ApiResponse<{ imageUrl: string }>> {
+    const formData = new FormData();
+    formData.append('image', file);
+    
+    // Synchroniser le token depuis localStorage
+    if (typeof window !== 'undefined') {
+      const storedToken = localStorage.getItem('token') || localStorage.getItem('auth_token');
+      if (storedToken && storedToken !== this.token) {
+        this.token = storedToken;
+      }
+    }
+    
+    if (!this.token) {
+      throw new Error('Non authentifié');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/upload/categories/${categoryId}/image`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.token.trim()}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Erreur lors de l\'upload' }));
+      throw new Error(error.message || 'Erreur lors de l\'upload de l\'image');
+    }
+
+    return await response.json();
   }
 
   async deleteCategory(id: string) {
