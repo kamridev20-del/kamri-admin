@@ -2126,7 +2126,7 @@ export default function DraftProductsPage() {
                           console.log(`🔍 [DRAFT-EDIT] Produit ${product.id} - Variants disponibles:`, {
                             editingVariants: editingVariants[product.id]?.length || 0,
                             productVariants: product.productVariants?.length || 0,
-                            variantsJson: product.variants ? (typeof product.variants === 'string' ? JSON.parse(product.variants).length : product.variants.length) : 0,
+                            variantsJson: product.variants ? (typeof product.variants === 'string' ? (JSON.parse(product.variants) as any[]).length : (product.variants as any[]).length) : 0,
                             variants: variants.length,
                             variantDetails: variants.map(v => ({
                               id: v.id,
