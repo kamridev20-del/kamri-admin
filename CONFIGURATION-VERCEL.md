@@ -48,3 +48,4 @@ Si vous avez toujours des erreurs CORS :
 3. Vérifiez que les URLs n'ont pas de `/` à la fin
 4. Vérifiez que `NODE_ENV=production` est défini dans Railway
 
+

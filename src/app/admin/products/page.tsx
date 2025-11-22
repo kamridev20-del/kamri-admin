@@ -104,6 +104,8 @@ export default function ProductsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [showLogin, setShowLogin] = useState(false)
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const productsPerPage = 50
   const { isAuthenticated } = useAuth()
   const toast = useToast()
 
@@ -331,6 +333,17 @@ export default function ProductsPage() {
     return matchesSearch && matchesCategory && matchesSupplier
   })
 
+  // Calculer la pagination
+  const totalPages = Math.ceil(filteredProducts.length / productsPerPage)
+  const startIndex = (currentPage - 1) * productsPerPage
+  const endIndex = startIndex + productsPerPage
+  const paginatedProducts = filteredProducts.slice(startIndex, endIndex)
+
+  // Réinitialiser la page quand les filtres changent
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, selectedCategory, selectedSupplier])
+
   const categoryOptions = ['Toutes', ...(categories || []).map(cat => cat.name)]
   const supplierOptions = ['Tous', ...(suppliers || []).map(sup => sup.name)]
 
@@ -529,6 +542,7 @@ export default function ProductsPage() {
               {filteredProducts.length} produit{filteredProducts.length > 1 ? 's' : ''} trouvé{filteredProducts.length > 1 ? 's' : ''}
               {selectedCategory !== 'Toutes' && ` dans la catégorie "${selectedCategory}"`}
               {selectedSupplier !== 'Tous' && ` du fournisseur "${selectedSupplier}"`}
+              {totalPages > 1 && ` (Page ${currentPage}/${totalPages})`}
             </>
           ) : (
             <>
@@ -539,7 +553,7 @@ export default function ProductsPage() {
         </div>
         <div>
           {activeTab === 'local' ? (
-            <>Total: {products.length} produit{products.length > 1 ? 's' : ''}</>
+            <>Total: {products.length} produit{products.length > 1 ? 's' : ''} | Affichage: {startIndex + 1}-{Math.min(endIndex, filteredProducts.length)} sur {filteredProducts.length}</>
           ) : (
             <>Total CJ: {cjTotal} produit{cjTotal > 1 ? 's' : ''}</>
           )}
@@ -560,8 +574,8 @@ export default function ProductsPage() {
       {!isCJLoading && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {activeTab === 'local' ? (
-            // ✅ Affichage des produits locaux
-            filteredProducts.map((product) => (
+            // ✅ Affichage des produits locaux (paginated)
+            paginatedProducts.map((product) => (
               <Card key={product.id} className="kamri-card group">
                 <CardContent className="p-0">
                   {/* Product Image */}
@@ -785,6 +799,53 @@ export default function ProductsPage() {
                 </Card>
               ))
             )}
+        </div>
+      )}
+
+      {/* Pagination pour les produits locaux */}
+      {activeTab === 'local' && totalPages > 1 && (
+        <div className="flex justify-center items-center gap-2 mt-6">
+          <Button
+            variant="outline"
+            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+            disabled={currentPage === 1}
+          >
+            Précédent
+          </Button>
+          
+          <div className="flex gap-1">
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              let pageNum: number;
+              if (totalPages <= 5) {
+                pageNum = i + 1;
+              } else if (currentPage <= 3) {
+                pageNum = i + 1;
+              } else if (currentPage >= totalPages - 2) {
+                pageNum = totalPages - 4 + i;
+              } else {
+                pageNum = currentPage - 2 + i;
+              }
+              
+              return (
+                <Button
+                  key={pageNum}
+                  variant={currentPage === pageNum ? "default" : "outline"}
+                  onClick={() => setCurrentPage(pageNum)}
+                  className="min-w-[40px]"
+                >
+                  {pageNum}
+                </Button>
+              );
+            })}
+          </div>
+          
+          <Button
+            variant="outline"
+            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+            disabled={currentPage === totalPages}
+          >
+            Suivant
+          </Button>
         </div>
       )}
 
