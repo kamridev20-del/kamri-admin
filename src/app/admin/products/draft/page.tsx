@@ -2213,18 +2213,16 @@ export default function DraftProductsPage() {
                                     </div>
                                     
                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-                                      {variant.price !== undefined && variant.price !== null && (
-                                        <div>
-                                          <span className="text-gray-500">Prix:</span>
-                                          <span className="ml-1 font-semibold">{variant.price}$</span>
-                                        </div>
-                                      )}
-                                      {variant.stock !== undefined && variant.stock !== null && (
-                                        <div>
-                                          <span className="text-gray-500">Stock:</span>
-                                          <span className="ml-1">{variant.stock}</span>
-                                        </div>
-                                      )}
+                                      <div>
+                                        <span className="text-gray-500">Prix:</span>
+                                        <span className="ml-1 font-semibold">
+                                          {variant.price !== undefined && variant.price !== null ? `${variant.price}$` : 'N/A'}
+                                        </span>
+                                      </div>
+                                      <div>
+                                        <span className="text-gray-500">Stock:</span>
+                                        <span className="ml-1 font-semibold">{variant.stock ?? 0}</span>
+                                      </div>
                                       {variant.weight !== undefined && variant.weight !== null && (
                                         <div>
                                           <span className="text-gray-500">Poids:</span>

@@ -114,14 +114,17 @@ export function ProductDetailsModal({
     // 1. Essayer d'abord productVariants (relation Prisma) - priorité haute
     if (product?.productVariants && Array.isArray(product.productVariants) && product.productVariants.length > 0) {
       // Transformer les ProductVariant en format compatible avec le modal
+      // ✅ Utiliser variantSellPrice (format CJ) au lieu de variantPrice
       variants = product.productVariants.map((pv: any) => ({
         vid: pv.cjVariantId || pv.id,
         variantName: pv.name || '',
         variantNameEn: pv.name || '',
         variantSku: pv.sku || '',
         variantImage: pv.image || '',
-        variantPrice: pv.price || 0,
+        variantSellPrice: pv.price || 0, // ✅ Format CJ : variantSellPrice
+        variantPrice: pv.price || 0, // ✅ Garder aussi variantPrice pour compatibilité
         variantStock: pv.stock || 0,
+        stock: pv.stock || 0, // ✅ Ajouter aussi stock pour compatibilité
         variantWeight: pv.weight || 0,
         variantDimensions: typeof pv.dimensions === 'string' ? pv.dimensions : JSON.stringify(pv.dimensions || {}),
         variantProperties: typeof pv.properties === 'string' ? pv.properties : JSON.stringify(pv.properties || {}),
