@@ -1125,15 +1125,16 @@ export default function CJWebhooksPage() {
                 </div>
               );
             })}
-          </div>
-        ) : (
-          <div className="text-center py-8">
-            <div className="text-gray-500">
-              <div className="text-4xl mb-4">📡</div>
-              <h3 className="text-lg font-medium mb-2">Aucun webhook reçu</h3>
-              <p>Les webhooks CJ Dropshipping apparaîtront ici une fois activés</p>
             </div>
-          </div>
+          ) : (
+            <div className="text-center py-8">
+              <div className="text-gray-500">
+                <div className="text-4xl mb-4">📡</div>
+                <h3 className="text-lg font-medium mb-2">Aucun webhook reçu</h3>
+                <p>Les webhooks CJ Dropshipping apparaîtront ici une fois activés</p>
+              </div>
+            </div>
+          )
         )}
       </Card>
     </div>
