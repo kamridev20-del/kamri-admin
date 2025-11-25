@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/contexts/ToastContext';
 import { apiClient } from '@/lib/apiClient';
 import { apiClient as apiClientAuth } from '@/lib/api';
-import { CheckCircle, Clock, Package, Store as StoreIcon, TrendingUp, XCircle, Edit, Send } from 'lucide-react';
+import { CheckCircle, Clock, Package, Store as StoreIcon, TrendingUp, XCircle, Edit, Send, Trash2, CheckSquare, Square } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 interface Store {
@@ -87,6 +87,10 @@ export default function StoresPage() {
   const [prepareFormData, setPrepareFormData] = useState({ categoryId: '', margin: 30 });
   const [currentPage, setCurrentPage] = useState(1);
   const productsPerPage = 50;
+
+  // ✅ États pour la sélection multiple
+  const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Récupérer les magasins
   const fetchStores = useCallback(async () => {
@@ -218,6 +222,93 @@ export default function StoresPage() {
       console.error('Erreur lors de la sélection:', error);
     }
   }, [fetchStoreProducts]);
+
+  // ✅ Fonctions pour la sélection multiple (checkboxes)
+  const toggleProductCheckbox = (productId: string) => {
+    setSelectedProducts(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(productId)) {
+        newSet.delete(productId);
+      } else {
+        newSet.add(productId);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAllProducts = () => {
+    setSelectedProducts(new Set(paginatedProducts.map(p => p.id)));
+  };
+
+  const deselectAllProducts = () => {
+    setSelectedProducts(new Set());
+  };
+
+  // ✅ Suppression en masse des produits du magasin
+  const handleBulkDelete = async () => {
+    if (!selectedStoreId) return;
+    
+    if (selectedProducts.size === 0) {
+      toast.showToast({
+        type: 'warning',
+        title: 'Aucun produit sélectionné',
+        description: 'Veuillez sélectionner au moins un produit à supprimer'
+      });
+      return;
+    }
+
+    const productNames = paginatedProducts
+      .filter(p => selectedProducts.has(p.id))
+      .map(p => p.name)
+      .slice(0, 3)
+      .join(', ');
+    const moreCount = selectedProducts.size > 3 ? ` et ${selectedProducts.size - 3} autre(s)` : '';
+
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer ${selectedProducts.size} produit(s) du magasin ?\n\n${productNames}${moreCount}\n\nCette action est irréversible.`)) {
+      return;
+    }
+
+    try {
+      setIsDeleting(true);
+      const ids = Array.from(selectedProducts);
+      const response = await apiClient<{ deleted: number; failed: number; errors?: string[] }>(
+        `/stores/${selectedStoreId}/products/bulk`,
+        {
+          method: 'DELETE',
+          body: JSON.stringify({ ids }),
+        }
+      );
+
+      if (response.failed > 0) {
+        toast.showToast({
+          type: 'warning',
+          title: 'Suppression partielle',
+          description: `${response.deleted} produit(s) supprimé(s), ${response.failed} échec(s)`
+        });
+      } else {
+        toast.showToast({
+          type: 'success',
+          title: 'Produits supprimés',
+          description: `${response.deleted} produit(s) supprimé(s) du magasin avec succès`
+        });
+      }
+      
+      // Recharger la liste et désélectionner
+      setSelectedProducts(new Set());
+      if (selectedStoreId) {
+        fetchStoreProducts(selectedStoreId);
+        fetchStores();
+      }
+    } catch (error: any) {
+      toast.showToast({
+        type: 'error',
+        title: 'Erreur',
+        description: error?.message || 'Une erreur est survenue lors de la suppression'
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   // Importer les produits sélectionnés
   const importSelectedProducts = useCallback(async (storeId: string) => {
@@ -476,17 +567,70 @@ export default function StoresPage() {
               </Select>
             </div>
 
-            {/* Info pagination */}
-            {totalPages > 1 && (
-              <div className="flex justify-between items-center text-sm text-gray-600 mb-4">
-                <div>
-                  Affichage: {startIndex + 1}-{Math.min(endIndex, products.length)} sur {products.length} produits
-                </div>
-                <div>
-                  Page {currentPage}/{totalPages}
-                </div>
+            {/* Info pagination et Actions de sélection */}
+            <div className="flex justify-between items-center mb-4">
+              <div className="text-sm text-gray-600">
+                {totalPages > 1 ? (
+                  <>
+                    Affichage: {startIndex + 1}-{Math.min(endIndex, products.length)} sur {products.length} produits
+                    {' | '}
+                    Page {currentPage}/{totalPages}
+                  </>
+                ) : (
+                  <>{products.length} produit{products.length > 1 ? 's' : ''}</>
+                )}
               </div>
-            )}
+              
+              {/* ✅ Actions de sélection multiple */}
+              {paginatedProducts.length > 0 && (
+                <div className="flex items-center gap-3">
+                  {selectedProducts.size > 0 && (
+                    <>
+                      <span className="text-sm text-gray-600 font-medium">
+                        {selectedProducts.size} sélectionné{selectedProducts.size > 1 ? 's' : ''}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={deselectAllProducts}
+                        disabled={isDeleting}
+                      >
+                        <Square className="w-4 h-4 mr-1" />
+                        Tout désélectionner
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={handleBulkDelete}
+                        disabled={isDeleting}
+                      >
+                        {isDeleting ? (
+                          <>
+                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-2"></div>
+                            Suppression...
+                          </>
+                        ) : (
+                          <>
+                            <Trash2 className="w-4 h-4 mr-1" />
+                            Supprimer ({selectedProducts.size})
+                          </>
+                        )}
+                      </Button>
+                    </>
+                  )}
+                  {selectedProducts.size === 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={selectAllProducts}
+                    >
+                      <CheckSquare className="w-4 h-4 mr-1" />
+                      Tout sélectionner
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {paginatedProducts.length === 0 ? (
@@ -498,9 +642,18 @@ export default function StoresPage() {
                 paginatedProducts.map((product) => (
                   <Card
                     key={product.id}
-                    className={`relative ${product.status === 'selected' ? 'border-2 border-primary' : ''}`}
+                    className={`relative ${product.status === 'selected' ? 'border-2 border-primary' : ''} ${selectedProducts.has(product.id) ? 'ring-2 ring-primary-500' : ''}`}
                   >
                     <CardContent className="p-4">
+                      {/* Checkbox de sélection */}
+                      <div className="absolute top-2 left-2 z-10">
+                        <input
+                          type="checkbox"
+                          checked={selectedProducts.has(product.id)}
+                          onChange={() => toggleProductCheckbox(product.id)}
+                          className="w-5 h-5 text-primary-600 bg-white border-gray-300 rounded focus:ring-primary-500 cursor-pointer"
+                        />
+                      </div>
                       {(() => {
                         const imageUrl = getCleanImageUrl(product.image);
                         return imageUrl && (
