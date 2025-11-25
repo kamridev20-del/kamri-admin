@@ -237,7 +237,27 @@ export default function StoresPage() {
   };
 
   const selectAllProducts = () => {
-    setSelectedProducts(new Set(paginatedProducts.map(p => p.id)));
+    const allIds = new Set(paginatedProducts.map(p => p.id));
+    // Si tous les produits de la page sont déjà sélectionnés, les désélectionner
+    // Sinon, tous les sélectionner
+    const allSelected = paginatedProducts.length > 0 && 
+      paginatedProducts.every(p => selectedProducts.has(p.id));
+    
+    if (allSelected) {
+      // Désélectionner tous les produits de la page
+      setSelectedProducts(prev => {
+        const newSet = new Set(prev);
+        paginatedProducts.forEach(p => newSet.delete(p.id));
+        return newSet;
+      });
+    } else {
+      // Sélectionner tous les produits de la page
+      setSelectedProducts(prev => {
+        const newSet = new Set(prev);
+        paginatedProducts.forEach(p => newSet.add(p.id));
+        return newSet;
+      });
+    }
   };
 
   const deselectAllProducts = () => {
