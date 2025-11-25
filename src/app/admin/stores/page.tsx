@@ -291,7 +291,7 @@ export default function StoresPage() {
     try {
       setIsDeleting(true);
       const ids = Array.from(selectedProducts);
-      const response = await apiClient<{ deleted: number; failed: number; errors?: string[] }>(
+      const response = await apiClient<{ deleted: number; failed: number; notFound?: number; errors?: string[] }>(
         `/stores/${selectedStoreId}/products/bulk`,
         {
           method: 'DELETE',
@@ -299,11 +299,21 @@ export default function StoresPage() {
         }
       );
 
-      if (response.failed > 0) {
+      const notFoundCount = response.notFound || 0;
+      const totalProcessed = response.deleted + response.failed + notFoundCount;
+
+      if (response.failed > 0 || notFoundCount > 0) {
+        let message = `${response.deleted} produit(s) supprimé(s)`;
+        if (notFoundCount > 0) {
+          message += `, ${notFoundCount} non trouvé(s) (peut-être déjà supprimés)`;
+        }
+        if (response.failed > 0) {
+          message += `, ${response.failed} échec(s)`;
+        }
         toast.showToast({
           type: 'warning',
           title: 'Suppression partielle',
-          description: `${response.deleted} produit(s) supprimé(s), ${response.failed} échec(s)`
+          description: message
         });
       } else {
         toast.showToast({
