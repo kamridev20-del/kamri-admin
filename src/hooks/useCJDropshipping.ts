@@ -489,6 +489,56 @@ export const useCJDropshipping = () => {
     }
   };
 
+  // ✅ NOUVELLES FONCTIONS POUR LES WEBHOOKS EN ATTENTE
+  const getPendingWebhooks = async (type?: string, page: number = 1, limit: number = 50): Promise<any> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams();
+      if (type) params.append('type', type);
+      params.append('page', page.toString());
+      params.append('limit', limit.toString());
+      
+      const { data } = await api.get(`/webhooks/pending?${params.toString()}`);
+      return { data };
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Erreur lors de la récupération des webhooks en attente');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const importFromPendingWebhook = async (webhookLogId: string, categoryId?: string): Promise<any> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data } = await api.post(`/webhooks/pending/${webhookLogId}/import`, {
+        categoryId,
+      });
+      return data;
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Erreur lors de l\'import du produit');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const ignorePendingWebhook = async (webhookLogId: string): Promise<any> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data } = await api.post(`/webhooks/pending/${webhookLogId}/ignore`);
+      return data;
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Erreur lors de l\'ignore du produit');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // ===== STATISTIQUES =====
 
   const getStats = async (): Promise<any> => {
@@ -695,6 +745,9 @@ export const useCJDropshipping = () => {
     configureWebhooks,
     getWebhookStatus,
     getWebhookLogs,
+    getPendingWebhooks,
+    importFromPendingWebhook,
+    ignorePendingWebhook,
     getStats,
     getCategories,
     getCategoriesTree,

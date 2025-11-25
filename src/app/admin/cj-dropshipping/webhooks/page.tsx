@@ -9,7 +9,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { useCJDropshipping } from '@/hooks/useCJDropshipping';
 import { CJWebhookLog } from '@/types/cj.types';
 import { useEffect, useState } from 'react';
-import { Copy, Check, ExternalLink } from 'lucide-react';
+import { Copy, Check, ExternalLink, Package, Clock, X } from 'lucide-react';
 
 export default function CJWebhooksPage() {
   const {
@@ -19,6 +19,9 @@ export default function CJWebhooksPage() {
     getWebhookStatus,
     getWebhookLogs,
     importProduct,
+    getPendingWebhooks,
+    importFromPendingWebhook,
+    ignorePendingWebhook,
   } = useCJDropshipping();
 
   const [webhookLogs, setWebhookLogs] = useState<CJWebhookLog[]>([]);
@@ -29,6 +32,12 @@ export default function CJWebhooksPage() {
   const [selectedTypes, setSelectedTypes] = useState<('product' | 'stock' | 'order' | 'logistics')[]>(['product', 'stock', 'order', 'logistics']);
   const [copied, setCopied] = useState(false);
   const [importingPids, setImportingPids] = useState<Set<string>>(new Set());
+  const [activeTab, setActiveTab] = useState<'logs' | 'pending'>('logs');
+  const [pendingProducts, setPendingProducts] = useState<any[]>([]);
+  const [pendingPage, setPendingPage] = useState(1);
+  const [pendingTotal, setPendingTotal] = useState(0);
+  const [importingWebhooks, setImportingWebhooks] = useState<Set<string>>(new Set());
+  const [ignoringWebhooks, setIgnoringWebhooks] = useState<Set<string>>(new Set());
   const toast = useToast();
 
   useEffect(() => {
@@ -37,6 +46,12 @@ export default function CJWebhooksPage() {
     // Détecter automatiquement l'URL ngrok ou utiliser l'URL par défaut
     detectCallbackUrl();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'pending') {
+      loadPendingWebhooks();
+    }
+  }, [activeTab, pendingPage]);
 
   const detectCallbackUrl = () => {
     // Détecter automatiquement l'URL ngrok depuis window.location si disponible
@@ -81,6 +96,90 @@ export default function CJWebhooksPage() {
     } catch (err) {
       console.error('Erreur lors du chargement des logs:', err);
       setWebhookLogs([]);
+    }
+  };
+
+  const loadPendingWebhooks = async () => {
+    try {
+      const response = await getPendingWebhooks(undefined, pendingPage, 20);
+      const data = response?.data || response;
+      setPendingProducts(data.products || []);
+      setPendingTotal(data.pagination?.total || 0);
+    } catch (err) {
+      console.error('Erreur lors du chargement des produits en attente:', err);
+      setPendingProducts([]);
+      setPendingTotal(0);
+    }
+  };
+
+  const handleImportPending = async (webhookId: string) => {
+    if (importingWebhooks.has(webhookId)) return;
+    
+    setImportingWebhooks(prev => new Set(prev).add(webhookId));
+    try {
+      const result = await importFromPendingWebhook(webhookId);
+      if (result.success) {
+        toast.showToast({
+          type: 'success',
+          title: 'Import réussi',
+          description: result.message || 'Produit importé avec succès dans le magasin'
+        });
+        await loadPendingWebhooks();
+        window.dispatchEvent(new Event('refreshStoreNotifications'));
+      } else {
+        toast.showToast({
+          type: 'error',
+          title: 'Erreur import',
+          description: result.message || 'Erreur lors de l\'import'
+        });
+      }
+    } catch (err: any) {
+      toast.showToast({
+        type: 'error',
+        title: 'Erreur import',
+        description: err?.response?.data?.message || 'Erreur lors de l\'import'
+      });
+    } finally {
+      setImportingWebhooks(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(webhookId);
+        return newSet;
+      });
+    }
+  };
+
+  const handleIgnorePending = async (webhookId: string) => {
+    if (ignoringWebhooks.has(webhookId)) return;
+    
+    setIgnoringWebhooks(prev => new Set(prev).add(webhookId));
+    try {
+      const result = await ignorePendingWebhook(webhookId);
+      if (result.success) {
+        toast.showToast({
+          type: 'success',
+          title: 'Produit ignoré',
+          description: result.message || 'Produit ignoré avec succès'
+        });
+        await loadPendingWebhooks();
+      } else {
+        toast.showToast({
+          type: 'error',
+          title: 'Erreur',
+          description: result.message || 'Erreur lors de l\'ignore'
+        });
+      }
+    } catch (err: any) {
+      toast.showToast({
+        type: 'error',
+        title: 'Erreur',
+        description: err?.response?.data?.message || 'Erreur lors de l\'ignore'
+      });
+    } finally {
+      setIgnoringWebhooks(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(webhookId);
+        return newSet;
+      });
     }
   };
 
@@ -568,12 +667,38 @@ export default function CJWebhooksPage() {
         </div>
       </Card>
 
-      {/* Logs des webhooks */}
+      {/* Onglets Logs / En attente */}
       <Card className="p-6">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-lg font-semibold">Logs des webhooks</h2>
+          <div className="flex gap-2 border-b">
+            <button
+              onClick={() => setActiveTab('logs')}
+              className={`px-4 py-2 font-medium transition-colors ${
+                activeTab === 'logs'
+                  ? 'border-b-2 border-primary text-primary'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Logs des webhooks
+            </button>
+            <button
+              onClick={() => setActiveTab('pending')}
+              className={`px-4 py-2 font-medium transition-colors relative ${
+                activeTab === 'pending'
+                  ? 'border-b-2 border-primary text-primary'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Produits en attente
+              {pendingTotal > 0 && (
+                <span className="ml-2 px-2 py-0.5 bg-orange-500 text-white text-xs rounded-full">
+                  {pendingTotal}
+                </span>
+              )}
+            </button>
+          </div>
           <Button
-            onClick={loadWebhookLogs}
+            onClick={activeTab === 'logs' ? loadWebhookLogs : loadPendingWebhooks}
             variant="outline"
             size="sm"
           >
@@ -581,8 +706,128 @@ export default function CJWebhooksPage() {
           </Button>
         </div>
 
-        {webhookLogs.length > 0 ? (
-          <div className="space-y-4">
+        {/* Contenu selon l'onglet actif */}
+        {activeTab === 'pending' ? (
+          /* Produits en attente */
+          pendingProducts.length > 0 ? (
+            <div className="space-y-4">
+              {pendingProducts.map((product) => (
+                <div
+                  key={product.webhookId}
+                  className="border rounded-lg p-4 bg-white hover:shadow-md transition-shadow"
+                >
+                  <div className="flex gap-4">
+                    {/* Image */}
+                    {product.image && (
+                      <img
+                        src={Array.isArray(product.image) ? product.image[0] : product.image}
+                        alt={product.name}
+                        className="w-24 h-24 object-cover rounded border border-gray-200"
+                      />
+                    )}
+                    
+                    {/* Informations */}
+                    <div className="flex-1">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <h3 className="font-semibold text-lg">{product.name}</h3>
+                          <p className="text-sm text-gray-500">
+                            {product.type === 'PRODUCT' ? 'Produit' : 'Variante'} • ID: {product.productId}
+                          </p>
+                          {product.category && (
+                            <p className="text-sm text-gray-500">Catégorie: {product.category}</p>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <p className="text-lg font-bold text-primary">
+                            {typeof product.price === 'number' ? `${product.price.toFixed(2)} $` : product.price}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {formatDate(product.createdAt)}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      {/* Actions */}
+                      <div className="flex gap-2 mt-3">
+                        <Button
+                          onClick={() => handleImportPending(product.webhookId)}
+                          disabled={importingWebhooks.has(product.webhookId) || ignoringWebhooks.has(product.webhookId)}
+                          size="sm"
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          {importingWebhooks.has(product.webhookId) ? (
+                            <>
+                              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-2"></div>
+                              Import...
+                            </>
+                          ) : (
+                            <>
+                              <Package className="w-4 h-4 mr-1" />
+                              Importer dans le magasin
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          onClick={() => handleIgnorePending(product.webhookId)}
+                          disabled={importingWebhooks.has(product.webhookId) || ignoringWebhooks.has(product.webhookId)}
+                          variant="outline"
+                          size="sm"
+                        >
+                          {ignoringWebhooks.has(product.webhookId) ? (
+                            <>
+                              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary mr-2"></div>
+                              Ignore...
+                            </>
+                          ) : (
+                            <>
+                              <X className="w-4 h-4 mr-1" />
+                              Ignorer
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              
+              {/* Pagination */}
+              {Math.ceil(pendingTotal / 20) > 1 && (
+                <div className="flex justify-center gap-2 mt-6">
+                  <Button
+                    variant="outline"
+                    onClick={() => setPendingPage(prev => Math.max(1, prev - 1))}
+                    disabled={pendingPage === 1}
+                  >
+                    Précédent
+                  </Button>
+                  <span className="px-4 py-2 text-sm text-gray-600">
+                    Page {pendingPage} / {Math.ceil(pendingTotal / 20)}
+                  </span>
+                  <Button
+                    variant="outline"
+                    onClick={() => setPendingPage(prev => Math.min(Math.ceil(pendingTotal / 20), prev + 1))}
+                    disabled={pendingPage >= Math.ceil(pendingTotal / 20)}
+                  >
+                    Suivant
+                  </Button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <Clock className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium mb-2">Aucun produit en attente</h3>
+              <p className="text-gray-500">
+                Les produits arrivant via les webhooks apparaîtront ici pour que vous puissiez décider de les importer ou non.
+              </p>
+            </div>
+          )
+        ) : (
+          /* Logs des webhooks (contenu existant) */
+          webhookLogs.length > 0 ? (
+            <div className="space-y-4">
             {webhookLogs.slice(0, 50).map((log) => {
               const payloadInfo = extractPayloadInfo(log);
               const payload = formatPayload(log.payload);
