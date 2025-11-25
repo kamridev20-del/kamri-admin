@@ -274,6 +274,16 @@ export class ApiClient {
     });
   }
 
+  async bulkDeleteProducts(ids: string[]) {
+    return this.fetchWithAuth('/products/bulk/delete', {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ ids }),
+    });
+  }
+
   async getPendingProducts() {
     return this.fetchWithAuth('/products/admin/pending');
   }

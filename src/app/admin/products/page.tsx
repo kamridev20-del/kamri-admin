@@ -19,7 +19,9 @@ import {
     MoreHorizontal,
     Package,
     Search,
-    Trash2
+    Trash2,
+    CheckSquare,
+    Square
 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 
@@ -121,6 +123,10 @@ export default function ProductsPage() {
   const [isCJLoading, setIsCJLoading] = useState(false)
   const [cjPageNum, setCJPageNum] = useState(1)
   const [cjTotal, setCJTotal] = useState(0)
+
+  // ✅ États pour la sélection multiple
+  const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set())
+  const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -259,6 +265,89 @@ export default function ProductsPage() {
   useEffect(() => {
     setCurrentPage(1)
   }, [searchQuery, selectedCategory, selectedSupplier])
+
+  // ✅ Fonctions pour la sélection multiple
+  const toggleProductSelection = (productId: string) => {
+    setSelectedProducts(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(productId)) {
+        newSet.delete(productId)
+      } else {
+        newSet.add(productId)
+      }
+      return newSet
+    })
+  }
+
+  const selectAllProducts = () => {
+    setSelectedProducts(new Set(paginatedProducts.map(p => p.id)))
+  }
+
+  const deselectAllProducts = () => {
+    setSelectedProducts(new Set())
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedProducts.size === 0) {
+      toast.showToast({
+        type: 'warning',
+        title: 'Aucun produit sélectionné',
+        description: 'Veuillez sélectionner au moins un produit à supprimer'
+      })
+      return
+    }
+
+    const productNames = paginatedProducts
+      .filter(p => selectedProducts.has(p.id))
+      .map(p => p.name)
+      .slice(0, 3)
+      .join(', ')
+    const moreCount = selectedProducts.size > 3 ? ` et ${selectedProducts.size - 3} autre(s)` : ''
+
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer ${selectedProducts.size} produit(s) ?\n\n${productNames}${moreCount}\n\nCette action est irréversible et supprimera également toutes les données associées.`)) {
+      return
+    }
+
+    try {
+      setIsDeleting(true)
+      const ids = Array.from(selectedProducts)
+      const response = await apiClient.bulkDeleteProducts(ids)
+      
+      if (response.error) {
+        toast.showToast({
+          type: 'error',
+          title: 'Erreur',
+          description: response.error || 'Impossible de supprimer les produits'
+        })
+      } else {
+        const result = response.data
+        if (result.failed > 0) {
+          toast.showToast({
+            type: 'warning',
+            title: 'Suppression partielle',
+            description: `${result.deleted} produit(s) supprimé(s), ${result.failed} échec(s)`
+          })
+        } else {
+          toast.showToast({
+            type: 'success',
+            title: 'Produits supprimés',
+            description: `${result.deleted} produit(s) supprimé(s) avec succès`
+          })
+        }
+        // Recharger la liste et désélectionner
+        setSelectedProducts(new Set())
+        loadData()
+      }
+    } catch (error) {
+      toast.showToast({
+        type: 'error',
+        title: 'Erreur',
+        description: 'Une erreur est survenue lors de la suppression'
+      })
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   const getBadgeStyle = (badge: string | null) => {
     switch (badge) {
@@ -534,9 +623,9 @@ export default function ProductsPage() {
         </CardContent>
       </Card>
 
-      {/* Results Info */}
-      <div className="flex justify-between items-center text-sm text-gray-600">
-        <div>
+      {/* Results Info et Actions de sélection */}
+      <div className="flex justify-between items-center">
+        <div className="text-sm text-gray-600">
           {activeTab === 'local' ? (
             <>
               {filteredProducts.length} produit{filteredProducts.length > 1 ? 's' : ''} trouvé{filteredProducts.length > 1 ? 's' : ''}
@@ -551,11 +640,62 @@ export default function ProductsPage() {
             </>
           )}
         </div>
-        <div>
-          {activeTab === 'local' ? (
-            <>Total: {products.length} produit{products.length > 1 ? 's' : ''} | Affichage: {startIndex + 1}-{Math.min(endIndex, filteredProducts.length)} sur {filteredProducts.length}</>
-          ) : (
-            <>Total CJ: {cjTotal} produit{cjTotal > 1 ? 's' : ''}</>
+        
+        <div className="flex items-center gap-4">
+          {activeTab === 'local' && (
+            <div className="text-sm text-gray-600">
+              Total: {products.length} produit{products.length > 1 ? 's' : ''} | Affichage: {startIndex + 1}-{Math.min(endIndex, filteredProducts.length)} sur {filteredProducts.length}
+            </div>
+          )}
+          
+          {/* ✅ Actions de sélection multiple (uniquement pour les produits locaux) */}
+          {activeTab === 'local' && paginatedProducts.length > 0 && (
+            <div className="flex items-center gap-3">
+              {selectedProducts.size > 0 && (
+                <>
+                  <span className="text-sm text-gray-600 font-medium">
+                    {selectedProducts.size} sélectionné{selectedProducts.size > 1 ? 's' : ''}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={deselectAllProducts}
+                    disabled={isDeleting}
+                  >
+                    <Square className="w-4 h-4 mr-1" />
+                    Tout désélectionner
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleBulkDelete}
+                    disabled={isDeleting}
+                  >
+                    {isDeleting ? (
+                      <>
+                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-2"></div>
+                        Suppression...
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="w-4 h-4 mr-1" />
+                        Supprimer ({selectedProducts.size})
+                      </>
+                    )}
+                  </Button>
+                </>
+              )}
+              {selectedProducts.size === 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={selectAllProducts}
+                >
+                  <CheckSquare className="w-4 h-4 mr-1" />
+                  Tout sélectionner
+                </Button>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -576,8 +716,18 @@ export default function ProductsPage() {
           {activeTab === 'local' ? (
             // ✅ Affichage des produits locaux (paginated)
             paginatedProducts.map((product) => (
-              <Card key={product.id} className="kamri-card group">
+              <Card key={product.id} className={`kamri-card group ${selectedProducts.has(product.id) ? 'ring-2 ring-primary-500' : ''}`}>
                 <CardContent className="p-0">
+                  {/* Checkbox de sélection */}
+                  <div className="absolute top-3 left-3 z-10">
+                    <input
+                      type="checkbox"
+                      checked={selectedProducts.has(product.id)}
+                      onChange={() => toggleProductSelection(product.id)}
+                      className="w-5 h-5 text-primary-600 bg-white border-gray-300 rounded focus:ring-primary-500 cursor-pointer"
+                    />
+                  </div>
+                  
                   {/* Product Image */}
                   <div className="h-48 bg-gray-100 rounded-t-lg flex items-center justify-center relative overflow-hidden">
                     {(() => {
@@ -673,7 +823,42 @@ export default function ProductsPage() {
                         <Edit className="w-3 h-3 mr-1" />
                         Modifier
                       </Button>
-                      <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        onClick={async () => {
+                          if (confirm(`Êtes-vous sûr de vouloir supprimer le produit "${product.name}" ?\n\nCette action est irréversible et supprimera également toutes les données associées (variantes, images, avis, etc.).`)) {
+                            try {
+                              setIsLoading(true)
+                              const response = await apiClient.deleteProduct(product.id)
+                              if (response.error) {
+                                toast.showToast({
+                                  type: 'error',
+                                  title: 'Erreur',
+                                  description: response.error || 'Impossible de supprimer le produit'
+                                })
+                              } else {
+                                toast.showToast({
+                                  type: 'success',
+                                  title: 'Produit supprimé',
+                                  description: `Le produit "${product.name}" a été supprimé avec succès`
+                                })
+                                // Recharger la liste des produits
+                                loadData()
+                              }
+                            } catch (error) {
+                              toast.showToast({
+                                type: 'error',
+                                title: 'Erreur',
+                                description: 'Une erreur est survenue lors de la suppression'
+                              })
+                            } finally {
+                              setIsLoading(false)
+                            }
+                          }
+                        }}
+                      >
                         <Trash2 className="w-3 h-3" />
                       </Button>
                     </div>
