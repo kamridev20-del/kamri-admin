@@ -49,3 +49,6 @@ Si vous avez toujours des erreurs CORS :
 4. Vérifiez que `NODE_ENV=production` est défini dans Railway
 
 
+
+
+

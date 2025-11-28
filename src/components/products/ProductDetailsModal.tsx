@@ -7,6 +7,72 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ShippingOptions, ShippingOption } from './ShippingOptions'
 
+// Liste complète des pays disponibles
+const COUNTRIES = [
+  { code: 'AR', name: 'Argentine', flag: '🇦🇷' },
+  { code: 'AU', name: 'Australie', flag: '🇦🇺' },
+  { code: 'AT', name: 'Autriche', flag: '🇦🇹' },
+  { code: 'BE', name: 'Belgique', flag: '🇧🇪' },
+  { code: 'BJ', name: 'Bénin', flag: '🇧🇯' },
+  { code: 'BR', name: 'Brésil', flag: '🇧🇷' },
+  { code: 'BG', name: 'Bulgarie', flag: '🇧🇬' },
+  { code: 'BF', name: 'Burkina Faso', flag: '🇧🇫' },
+  { code: 'CM', name: 'Cameroun', flag: '🇨🇲' },
+  { code: 'CA', name: 'Canada', flag: '🇨🇦' },
+  { code: 'CF', name: 'République centrafricaine', flag: '🇨🇫' },
+  { code: 'CN', name: 'Chine', flag: '🇨🇳' },
+  { code: 'CI', name: 'Côte d\'Ivoire', flag: '🇨🇮' },
+  { code: 'CG', name: 'Congo', flag: '🇨🇬' },
+  { code: 'HR', name: 'Croatie', flag: '🇭🇷' },
+  { code: 'CY', name: 'Chypre', flag: '🇨🇾' },
+  { code: 'CZ', name: 'République tchèque', flag: '🇨🇿' },
+  { code: 'DK', name: 'Danemark', flag: '🇩🇰' },
+  { code: 'EE', name: 'Estonie', flag: '🇪🇪' },
+  { code: 'FI', name: 'Finlande', flag: '🇫🇮' },
+  { code: 'FR', name: 'France', flag: '🇫🇷' },
+  { code: 'GA', name: 'Gabon', flag: '🇬🇦' },
+  { code: 'DE', name: 'Allemagne', flag: '🇩🇪' },
+  { code: 'GR', name: 'Grèce', flag: '🇬🇷' },
+  { code: 'GQ', name: 'Guinée équatoriale', flag: '🇬🇶' },
+  { code: 'GW', name: 'Guinée-Bissau', flag: '🇬🇼' },
+  { code: 'HU', name: 'Hongrie', flag: '🇭🇺' },
+  { code: 'IS', name: 'Islande', flag: '🇮🇸' },
+  { code: 'IN', name: 'Inde', flag: '🇮🇳' },
+  { code: 'IE', name: 'Irlande', flag: '🇮🇪' },
+  { code: 'IT', name: 'Italie', flag: '🇮🇹' },
+  { code: 'JP', name: 'Japon', flag: '🇯🇵' },
+  { code: 'KR', name: 'Corée du Sud', flag: '🇰🇷' },
+  { code: 'LV', name: 'Lettonie', flag: '🇱🇻' },
+  { code: 'LT', name: 'Lituanie', flag: '🇱🇹' },
+  { code: 'LU', name: 'Luxembourg', flag: '🇱🇺' },
+  { code: 'ML', name: 'Mali', flag: '🇲🇱' },
+  { code: 'MT', name: 'Malte', flag: '🇲🇹' },
+  { code: 'MX', name: 'Mexique', flag: '🇲🇽' },
+  { code: 'NE', name: 'Niger', flag: '🇳🇪' },
+  { code: 'NL', name: 'Pays-Bas', flag: '🇳🇱' },
+  { code: 'NZ', name: 'Nouvelle-Zélande', flag: '🇳🇿' },
+  { code: 'NO', name: 'Norvège', flag: '🇳🇴' },
+  { code: 'PL', name: 'Pologne', flag: '🇵🇱' },
+  { code: 'PT', name: 'Portugal', flag: '🇵🇹' },
+  { code: 'RO', name: 'Roumanie', flag: '🇷🇴' },
+  { code: 'RU', name: 'Russie', flag: '🇷🇺' },
+  { code: 'SN', name: 'Sénégal', flag: '🇸🇳' },
+  { code: 'SK', name: 'Slovaquie', flag: '🇸🇰' },
+  { code: 'SI', name: 'Slovénie', flag: '🇸🇮' },
+  { code: 'ES', name: 'Espagne', flag: '🇪🇸' },
+  { code: 'SE', name: 'Suède', flag: '🇸🇪' },
+  { code: 'CH', name: 'Suisse', flag: '🇨🇭' },
+  { code: 'TD', name: 'Tchad', flag: '🇹🇩' },
+  { code: 'TH', name: 'Thaïlande', flag: '🇹🇭' },
+  { code: 'TG', name: 'Togo', flag: '🇹🇬' },
+  { code: 'TR', name: 'Turquie', flag: '🇹🇷' },
+  { code: 'UA', name: 'Ukraine', flag: '🇺🇦' },
+  { code: 'GB', name: 'Royaume-Uni', flag: '🇬🇧' },
+  { code: 'US', name: 'États-Unis', flag: '🇺🇸' },
+  { code: 'VN', name: 'Vietnam', flag: '🇻🇳' },
+  { code: 'ZA', name: 'Afrique du Sud', flag: '🇿🇦' },
+].sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+
 interface ProductDetails {
   id: string
   name: string
@@ -590,17 +656,11 @@ export function ProductDetailsModal({ productId, isOpen, onClose }: Props) {
                           onChange={(e) => setSelectedCountry(e.target.value)}
                           className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
                         >
-                          <option value="FR">🇫🇷 France</option>
-                          <option value="US">🇺🇸 États-Unis</option>
-                          <option value="GB">🇬🇧 Royaume-Uni</option>
-                          <option value="DE">🇩🇪 Allemagne</option>
-                          <option value="ES">🇪🇸 Espagne</option>
-                          <option value="IT">🇮🇹 Italie</option>
-                          <option value="CA">🇨🇦 Canada</option>
-                          <option value="BE">🇧🇪 Belgique</option>
-                          <option value="CH">🇨🇭 Suisse</option>
-                          <option value="NL">🇳🇱 Pays-Bas</option>
-                          <option value="AU">🇦🇺 Australie</option>
+                          {COUNTRIES.map((country) => (
+                            <option key={country.code} value={country.code}>
+                              {country.flag} {country.name}
+                            </option>
+                          ))}
                         </select>
                       </div>
                       
