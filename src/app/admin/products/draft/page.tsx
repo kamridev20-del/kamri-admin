@@ -340,9 +340,9 @@ export default function DraftProductsPage() {
         name: dataToSend.name,
         name_fr: dataToSend.name_fr,
         name_en: dataToSend.name_en,
-        description: dataToSend.description ? 'présente' : 'absente',
-        description_fr: dataToSend.description_fr ? 'présente' : 'absente',
-        description_en: dataToSend.description_en ? 'présente' : 'absente',
+        description: dataToSend.description ? `${dataToSend.description.substring(0, 50)}...` : 'vide',
+        description_fr: dataToSend.description_fr ? `${dataToSend.description_fr.substring(0, 50)}...` : 'vide',
+        description_en: dataToSend.description_en ? `${dataToSend.description_en.substring(0, 50)}...` : 'vide',
       });
 
       const response = await apiClient.editDraftProduct(id, dataToSend)
