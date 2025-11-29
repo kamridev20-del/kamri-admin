@@ -320,7 +320,8 @@ export default function DraftProductsPage() {
         imagesToSave.push(formData.image)
       }
 
-      const response = await apiClient.editDraftProduct(id, {
+      // 🔍 DEBUG : Logger les données avant envoi
+      const dataToSend = {
         name: formData.name,
         name_fr: formData.name_fr,
         name_en: formData.name_en,
@@ -333,7 +334,18 @@ export default function DraftProductsPage() {
         images: imagesToSave.length > 0 ? imagesToSave : undefined, // ✅ Envoyer toutes les images
         badge: formData.badge === 'none' ? undefined : formData.badge,
         stock: formData.stock,
-      })
+      };
+      
+      console.log('📤 [handleSave] Données envoyées au backend:', {
+        name: dataToSend.name,
+        name_fr: dataToSend.name_fr,
+        name_en: dataToSend.name_en,
+        description: dataToSend.description ? 'présente' : 'absente',
+        description_fr: dataToSend.description_fr ? 'présente' : 'absente',
+        description_en: dataToSend.description_en ? 'présente' : 'absente',
+      });
+
+      const response = await apiClient.editDraftProduct(id, dataToSend)
 
       if (response.data) {
         toast.showToast({
