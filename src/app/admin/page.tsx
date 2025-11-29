@@ -98,33 +98,80 @@ export default function DashboardPage() {
       setIsLoading(true)
       
       // Charger les statistiques
-      const statsResponse = await apiClient.getDashboardStats()
-      if (statsResponse.data) {
-        setStats(statsResponse.data)
+      console.log('📊 [Dashboard] Chargement des statistiques...')
+      try {
+        const statsResponse = await apiClient.getDashboardStats()
+        console.log('📊 [Dashboard] Réponse stats:', statsResponse)
+        if (statsResponse.data) {
+          console.log('✅ [Dashboard] Stats chargées:', statsResponse.data)
+          setStats(statsResponse.data)
+        } else {
+          console.error('❌ [Dashboard] Pas de données dans statsResponse:', statsResponse.error)
+          // ✅ Valeurs par défaut si erreur
+          setStats({
+            totalProducts: 0,
+            promoProducts: 0,
+            totalOrders: 0,
+            connectedSuppliers: 0,
+            totalUsers: 0,
+            activeUsers: 0,
+            totalRevenue: 0,
+            monthlyRevenue: 0,
+          })
+        }
+      } catch (statsError) {
+        console.error('❌ [Dashboard] Erreur chargement stats:', statsError)
+        // ✅ Valeurs par défaut si erreur
+        setStats({
+          totalProducts: 0,
+          promoProducts: 0,
+          totalOrders: 0,
+          connectedSuppliers: 0,
+          totalUsers: 0,
+          activeUsers: 0,
+          totalRevenue: 0,
+          monthlyRevenue: 0,
+        })
       }
 
       // Charger les top catégories
-      const categoriesResponse = await apiClient.getTopCategories()
-      if (categoriesResponse.data) {
-        setTopCategories(categoriesResponse.data)
+      try {
+        const categoriesResponse = await apiClient.getTopCategories()
+        if (categoriesResponse.data) {
+          setTopCategories(categoriesResponse.data)
+        }
+      } catch (error) {
+        console.warn('⚠️ [Dashboard] Erreur chargement catégories:', error)
       }
 
       // Charger l'activité récente
-      const activityResponse = await apiClient.getDashboardActivity()
-      if (activityResponse.data) {
-        setRecentActivity(activityResponse.data)
+      try {
+        const activityResponse = await apiClient.getDashboardActivity()
+        if (activityResponse.data) {
+          setRecentActivity(activityResponse.data)
+        }
+      } catch (error) {
+        console.warn('⚠️ [Dashboard] Erreur chargement activité:', error)
       }
 
       // Charger les produits en attente de validation
-      const pendingResponse = await apiClient.getProductsReadyForValidation()
-      if (pendingResponse.data) {
-        setPendingProducts(pendingResponse.data)
+      try {
+        const pendingResponse = await apiClient.getProductsReadyForValidation()
+        if (pendingResponse.data) {
+          setPendingProducts(pendingResponse.data)
+        }
+      } catch (error) {
+        console.warn('⚠️ [Dashboard] Erreur chargement produits en attente:', error)
       }
 
       // Charger les données du graphique des ventes
-      const salesResponse = await apiClient.getSalesChart()
-      if (salesResponse.data) {
-        setSalesChartData(salesResponse.data)
+      try {
+        const salesResponse = await apiClient.getSalesChart()
+        if (salesResponse.data) {
+          setSalesChartData(salesResponse.data)
+        }
+      } catch (error) {
+        console.warn('⚠️ [Dashboard] Erreur chargement graphique ventes:', error)
       }
 
       // Charger les statistiques CJ Dropshipping
@@ -134,10 +181,10 @@ export default function DashboardPage() {
           setCjStats(cjStatsResponse.data)
         }
       } catch (error) {
-        console.warn('Erreur chargement stats CJ:', error)
+        console.warn('⚠️ [Dashboard] Erreur chargement stats CJ:', error)
       }
     } catch (error) {
-      console.error('Erreur lors du chargement des données:', error)
+      console.error('❌ [Dashboard] Erreur générale lors du chargement des données:', error)
     } finally {
       setIsLoading(false)
     }
