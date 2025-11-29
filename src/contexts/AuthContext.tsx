@@ -29,31 +29,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Vérifier si l'utilisateur est déjà connecté au chargement
     const checkAuth = async () => {
       if (apiClient.isAuthenticated()) {
-        // Vérifier que le token est valide en appelant l'API profile
+        // ✅ Vérifier que le token est valide en appelant l'API profile (plus léger que dashboard/stats)
         try {
-          const response = await apiClient.getDashboardStats();
-          if (response.data) {
-            // Token valide, récupérer les infos utilisateur depuis localStorage
-            const storedUser = localStorage.getItem('user');
-            if (storedUser) {
-              setUser(JSON.parse(storedUser));
-            } else {
-              // Si pas d'infos utilisateur, définir des valeurs par défaut
-        setUser({
-          id: '1',
-          email: 'admin@kamri.com',
-          name: 'Admin KAMRI',
-          role: 'admin'
-        });
-            }
+          // Récupérer les infos utilisateur depuis localStorage d'abord
+          const storedUser = localStorage.getItem('user');
+          if (storedUser) {
+            const parsedUser = JSON.parse(storedUser);
+            setUser(parsedUser);
+            // Vérifier le token en arrière-plan sans bloquer l'UI
+            apiClient.getProfile?.().catch(() => {
+              // Token invalide, nettoyer silencieusement
+              console.log('❌ [AuthContext] Token invalide, déconnexion...');
+              apiClient.logout();
+              setUser(null);
+            });
           } else {
-            // Token invalide, nettoyer
-            console.log('❌ [AuthContext] Token invalide, déconnexion...');
-            apiClient.logout();
-            setUser(null);
+            // Si pas d'infos utilisateur, essayer de récupérer depuis l'API
+            try {
+              const profileResponse = await apiClient.getProfile?.();
+              if (profileResponse?.data) {
+                setUser(profileResponse.data);
+              } else {
+                // Token invalide, nettoyer
+                console.log('❌ [AuthContext] Token invalide, déconnexion...');
+                apiClient.logout();
+                setUser(null);
+              }
+            } catch (error) {
+              // Token invalide ou erreur, nettoyer
+              console.log('❌ [AuthContext] Erreur vérification token, déconnexion...', error);
+              apiClient.logout();
+              setUser(null);
+            }
           }
         } catch (error) {
-          // Token invalide ou erreur, nettoyer
+          // Erreur, nettoyer
           console.log('❌ [AuthContext] Erreur vérification token, déconnexion...', error);
           apiClient.logout();
           setUser(null);
@@ -72,11 +82,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (response.data && response.data.user) {
       console.log('✅ [AuthContext] Connexion réussie, utilisateur:', response.data.user.email);
       setUser(response.data.user);
-      // Vérifier que le token fonctionne en testant une requête
+      // ✅ Vérifier que le token fonctionne avec getProfile (plus léger que dashboard/stats)
       try {
-        const testResponse = await apiClient.getDashboardStats();
-        if (testResponse.error) {
-          console.error('❌ [AuthContext] Token généré mais invalide:', testResponse.error);
+        const testResponse = await apiClient.getProfile?.();
+        if (testResponse?.error || !testResponse?.data) {
+          console.error('❌ [AuthContext] Token généré mais invalide:', testResponse?.error);
           return { success: false, error: 'Token invalide après connexion' };
         }
         console.log('✅ [AuthContext] Token validé avec succès');

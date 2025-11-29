@@ -224,6 +224,11 @@ export class ApiClient {
     }
   }
 
+  // Auth
+  async getProfile() {
+    return this.fetchWithAuth('/auth/profile');
+  }
+
   // Dashboard
   async getDashboardStats() {
     return this.fetchWithAuth('/dashboard/stats');
