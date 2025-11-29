@@ -42,7 +42,11 @@ interface ProductVariant {
 interface DraftProduct {
   id: string
   name: string
+  name_fr?: string
+  name_en?: string
   description?: string
+  description_fr?: string
+  description_en?: string
   price: number
   originalPrice?: number
   margin?: number
@@ -279,7 +283,11 @@ export default function DraftProductsPage() {
     
     setFormData({
       name: product.name,
+      name_fr: product.name_fr || '',
+      name_en: product.name_en || product.name || '',
       description: product.description || '',
+      description_fr: product.description_fr || '',
+      description_en: product.description_en || product.description || '',
       margin: product.margin || 30,
       categoryId: product.categoryId || '',
       image: cleanImage || allImages[0] || '',
@@ -314,7 +322,11 @@ export default function DraftProductsPage() {
 
       const response = await apiClient.editDraftProduct(id, {
         name: formData.name,
+        name_fr: formData.name_fr,
+        name_en: formData.name_en,
         description: formData.description,
+        description_fr: formData.description_fr,
+        description_en: formData.description_en,
         margin: formData.margin,
         categoryId: formData.categoryId,
         image: formData.image,
@@ -1719,6 +1731,47 @@ export default function DraftProductsPage() {
                           />
                         </div>
 
+                        {/* 🌍 Section Traductions */}
+                        <div className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                          <h4 className="text-sm font-semibold text-blue-900 mb-3 flex items-center gap-2">
+                            🌍 Traductions multilingues
+                          </h4>
+                          
+                          {/* Français */}
+                          <div className="space-y-2">
+                            <Label htmlFor="name_fr" className="text-sm font-medium text-gray-700">
+                              🇫🇷 Nom en français
+                            </Label>
+                            <Input
+                              id="name_fr"
+                              value={formData.name_fr || ''}
+                              onChange={(e) => setFormData({ ...formData, name_fr: e.target.value })}
+                              placeholder="Nom du produit en français"
+                              className="bg-white"
+                            />
+                            <p className="text-xs text-gray-500">
+                              {formData.name_fr ? `${formData.name_fr.length} caractères` : 'À remplir pour la version française'}
+                            </p>
+                          </div>
+
+                          {/* Anglais */}
+                          <div className="space-y-2">
+                            <Label htmlFor="name_en" className="text-sm font-medium text-gray-700">
+                              🇬🇧 Nom en anglais
+                            </Label>
+                            <Input
+                              id="name_en"
+                              value={formData.name_en || ''}
+                              onChange={(e) => setFormData({ ...formData, name_en: e.target.value })}
+                              placeholder="Nom du produit en anglais"
+                              className="bg-white"
+                            />
+                            <p className="text-xs text-gray-500">
+                              {formData.name_en ? `${formData.name_en.length} caractères` : 'Généralement rempli automatiquement depuis CJ'}
+                            </p>
+                          </div>
+                        </div>
+
                         {/* ✅ Informations visuelles du produit */}
                         {(() => {
                           // 🔍 DEBUG : Log des variants pour déboguer
@@ -1895,6 +1948,49 @@ export default function DraftProductsPage() {
                           <p className="text-xs text-gray-500 mt-1">
                             ℹ️ Les informations ci-dessus sont extraites automatiquement de la description
                           </p>
+                        </div>
+
+                        {/* 🌍 Section Traductions - Descriptions */}
+                        <div className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                          <h4 className="text-sm font-semibold text-blue-900 mb-3 flex items-center gap-2">
+                            🌍 Descriptions multilingues
+                          </h4>
+                          
+                          {/* Description française */}
+                          <div className="space-y-2">
+                            <Label htmlFor="description_fr" className="text-sm font-medium text-gray-700">
+                              🇫🇷 Description en français
+                            </Label>
+                            <Textarea
+                              id="description_fr"
+                              value={formData.description_fr || ''}
+                              onChange={(e) => setFormData({ ...formData, description_fr: e.target.value })}
+                              placeholder="Description du produit en français"
+                              rows={4}
+                              className="bg-white"
+                            />
+                            <p className="text-xs text-gray-500">
+                              {formData.description_fr ? `${formData.description_fr.length} caractères` : 'À remplir pour la version française'}
+                            </p>
+                          </div>
+
+                          {/* Description anglaise */}
+                          <div className="space-y-2">
+                            <Label htmlFor="description_en" className="text-sm font-medium text-gray-700">
+                              🇬🇧 Description en anglais
+                            </Label>
+                            <Textarea
+                              id="description_en"
+                              value={formData.description_en || ''}
+                              onChange={(e) => setFormData({ ...formData, description_en: e.target.value })}
+                              placeholder="Description du produit en anglais"
+                              rows={4}
+                              className="bg-white"
+                            />
+                            <p className="text-xs text-gray-500">
+                              {formData.description_en ? `${formData.description_en.length} caractères` : 'Généralement rempli automatiquement depuis CJ'}
+                            </p>
+                          </div>
                         </div>
 
                         <div>

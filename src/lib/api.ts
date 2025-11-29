@@ -591,7 +591,11 @@ export class ApiClient {
   // Éditer un produit draft
   async editDraftProduct(id: string, data: {
     name?: string;
+    name_fr?: string;
+    name_en?: string;
     description?: string;
+    description_fr?: string;
+    description_en?: string;
     margin?: number;
     categoryId?: string;
     image?: string;
